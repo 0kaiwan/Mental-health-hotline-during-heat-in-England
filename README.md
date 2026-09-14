@@ -1,5 +1,4 @@
-# Code accompanying the manuscript: [INSERT MANUSCRIPT TITLE]
-
+# Code accompanying the manuscript
 This repository contains the R code used for the analyses reported in the manuscript 
 Mental health support seeking behaviour during during hot weatherin summertime weather: Daily time-series regression analysis of almost 2 million calls made to NHS mental health hotlines in England
 Prof Gesche M. Huebner (PhD)1*, Kai Wan (PhD)2, Charles H. Simpson (DPhil)3, Prof Clare Heaviside (PhD)3, Prof Anna Mavrogianni (PhD)3, Prof Shakoor Hajat (PhD)2
