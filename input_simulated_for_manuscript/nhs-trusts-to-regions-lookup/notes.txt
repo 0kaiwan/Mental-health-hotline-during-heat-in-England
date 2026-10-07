@@ -1,0 +1,5 @@
+etr.csv gives information about each trust, as explained in etr.pdf
+the trust name is column 2 of etr.csv
+the national grouping code (effectively the region) is column 3 of etr.csv
+
+NHS_England_(Region)_(2024)_Names_and_Codes_in_England.csv gives the mapping from the national grouping code to the region names
