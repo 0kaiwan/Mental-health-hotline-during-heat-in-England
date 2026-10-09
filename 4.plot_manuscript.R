@@ -11,7 +11,7 @@ RR_file <- c(
   ssrd = "RR_tas-lag3-cen16.4_ssrd-lag3-cen100_ssrd.csv"
 )
 
-var_full <- c("temperature", "solar radiation")
+var_full <- c("Temperature", "Solar radiation")
 
 season <- c("warm", "cold")
 month_season <- c("May to Sep", "Nov to Mar")
@@ -108,27 +108,91 @@ p_meta_ssrd_sensitivity <- ggplot(RR_meta, aes(x = var_value, y = RR)) +
     aes(ymin = RR_CIl, ymax = RR_CIh, fill = ssrd),
     alpha = 0.4
   ) +
-  scale_color_manual(values = c("inc-ssrd" = "#E69F00", "exc-ssrd" = "#0072B2")) +
-  scale_fill_manual(values = c("inc-ssrd" = "#E69F00", "exc-ssrd" = "#0072B2")) +
+  scale_color_manual(
+    name = "Solar radiation adjustment",
+    values = c("inc-ssrd" = "#E69F00", "exc-ssrd" = "#0072B2"),
+    breaks = c("inc-ssrd", "exc-ssrd"),
+    labels = c("Adjusted", "Not adjusted")
+  ) +
+  scale_fill_manual(
+    name = "Solar radiation adjustment",
+    values = c("inc-ssrd" = "#E69F00", "exc-ssrd" = "#0072B2"),
+    breaks = c("inc-ssrd", "exc-ssrd"),
+    labels = c("Adjusted", "Not adjusted")
+  ) +
   geom_hline(yintercept = 1) +
   theme_minimal(base_size = 14) +
   labs(
     x = paste0(var_name_lab[v], " percentile"), y = "relative risk",
-    title = paste0(var_full[v], " and mental health call, ", month_season[s], "\n with and without solar radiation controlled")
+    title = paste0("Temperature and mental health calls, May to September\nwith and without solar radiation adjustment")
   ) +
-  theme(text = element_text(size = 16))
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
 
 ggsave(
-  filename = paste0("ERF_meta_May-Sep_inc-exc-ssrd.jpeg"),
+  filename = paste0("Figure2_ERF_meta_May-Sep_inc-exc-ssrd.jpeg"),
   path = paste0("./output/", season[s], " months/sensitivity_analysis"),
-  plot = p_meta_ssrd_sensitivity, width = 9, height = 4.5, limitsize = FALSE
+  plot = p_meta_ssrd_sensitivity, width = 7, height = 5.5, limitsize = FALSE
 )
 ggsave(
-  filename = paste0("ERF_meta_May-Sep_inc-exc-ssrd.pdf"),
+  filename = paste0("Figure2_ERF_meta_May-Sep_inc-exc-ssrd.pdf"),
   path = paste0("./output/", season[s], " months/sensitivity_analysis"),
-  plot = p_meta_ssrd_sensitivity, width = 9, height = 4.5, limitsize = FALSE
+  plot = p_meta_ssrd_sensitivity, width = 7, height = 5.5, limitsize = FALSE
 )
 
+##----Figure S2: sensitivity exc ssrd trusts----
+RR_tas_inc_ssrd <- read.csv("./output/warm months/RR_tas-lag3-cen16.4_ssrd-lag3-cen100_tas.csv")
+RR_tas_exc_ssrd <- read.csv("./output/warm months/sensitivity_analysis/RR_tas-lag3-cen16.4_exc-ssrd_tas.csv")
+RR_tas_inc_ssrd <- RR_tas_inc_ssrd[, -c(6, 7)]
+RR_tas_all <- rbind(RR_tas_inc_ssrd, RR_tas_exc_ssrd)
+
+lookup_trust <- read.csv("input/lookup_trust_NHSRegion.csv")
+RR_tas_all <- left_join(RR_tas_all, lookup_trust[, c(1, 5)])
+colnames(RR_tas_all)[c(3, 5)] <- c("sun", "tas")
+RR_tas_all$var <- NULL
+
+RR_tas_all <- arrange(RR_tas_all, NHSER24NM, trust, tas)
+# Assign unique IDs to each group
+RR_tas_all <- RR_tas_all %>%
+  group_by(NHSER24NM) %>%
+  mutate(trust_id = dense_rank(trust)) %>%
+  ungroup()
+
+RR_tas_all$region_trust <- paste0(RR_tas_all$NHSER24NM, "_", RR_tas_all$trust_id)
+
+RR_tas_all$sun <- ifelse(RR_tas_all$sun == 3, "Adjusted", "Not adjusted")
+
+
+p_tas <- ggplot(data = RR_tas_all) +
+  geom_line(aes(tas, RR, colour = sun), linewidth = 1) +
+  geom_ribbon(aes(x = tas, ymin = RR_CIl, ymax = RR_CIh, fill = sun), alpha = 0.4) +
+  facet_wrap(~region_trust) +
+  scale_color_manual(
+    name = "Solar radiation adjustment",
+    values = c("Adjusted" = "#E69F00", "Not adjusted" = "#0072B2"),
+  ) +
+  scale_fill_manual(
+    name = "Solar radiation adjustment",
+    values = c("Adjusted" = "#E69F00", "Not adjusted" = "#0072B2"),
+  ) +
+  labs(y = "relative risk", x = "temperature percentile",
+       title = paste0("Temperature and mental health calls, May to September\nwith and without solar radiation adjustment")
+  ) +
+  theme_light() +
+  theme(
+    text = element_text(size = 12),
+    legend.position = "bottom"
+  )
+ggsave(
+  plot = p_tas,
+  filename = "FigureS2_ERF_25trust_tas_inc-exc-ssrd_regionid.jpeg", path = "./output/warm months/sensitivity_analysis/",
+  device = "jpeg", width = 10, height = 10, dpi = 600
+)
+ggsave(
+  plot = p_tas,
+  filename = "FigureS2_ERF_25trust_tas_inc-exc-ssrd_regionid.pdf", path = "./output/warm months/sensitivity_analysis/",
+  device = "pdf", width = 10, height = 10, dpi = 600
+)
 ## ----Figure 3: sensitivity lag 0-3----
 # ERF
 # warm only
@@ -143,7 +207,7 @@ for (v in 1:2) {
   RR_s <- subset(RR_meta, var == variable_n)
   colnames(RR_s)[8 - v] <- "lag_confound"
   colnames(RR_s)[5 + v] <- "lag"
-
+  
   RR_s <- subset(RR_s, lag_confound == "3")
   # Example plotting code
   p_meta <- ggplot(RR_s, aes(x = var_value, y = RR)) +
@@ -159,28 +223,26 @@ for (v in 1:2) {
     theme_minimal(base_size = 14) +
     labs(
       x = paste0(var_name_lab[v], " percentile"), y = "relative risk",
-      title = paste0(var_full[v], " and mental health call, ", month_season[s])
+      title = paste0(var_full[v], " and mental health call, May to September")
     ) +
     theme(
       text = element_text(size = 16),
       legend.position = "bottom"
     )
   ggsave(
-    filename = paste0("ERF_meta_May-Sep_", variable_n, "-lag0-3.jpeg"),
+    filename = paste0("Figure3_ERF_meta_May-Sep_", variable_n, "-lag0-3.jpeg"),
     path = paste0("./output/", season[s], " months/"),
     plot = p_meta, width = 9, height = 5, limitsize = FALSE
   )
   ggsave(
-    filename = paste0("ERF_meta_May-Sep_", variable_n, "-lag0-3.pdf"),
+    filename = paste0("Figure3_ERF_meta_May-Sep_", variable_n, "-lag0-3.pdf"),
     path = paste0("./output/", season[s], " months/"),
     plot = p_meta, width = 9, height = 5, limitsize = FALSE
   )
 }
-
 ## ----Figure 4: sensitivity COVD19----
 # the association between temperature and hotline call in the whole period
 # vs. in the post-COVID19 period
-
 # warm only
 s <- 1
 v <- 1
@@ -188,12 +250,12 @@ RR_meta <- read.csv(paste0("output/", season[s], " months/meta_tas-lag3_ssrd-lag
 RR_meta$trust <- NULL
 RR_meta$tas_lag <- NULL
 RR_meta$MMT <- NULL
-RR_meta$period <- "inc_COVID19_period"
+RR_meta$period <- "including COVID19 period"
 
 RR_meta_post <- read.csv(paste0("output/", season[s], " months/meta_tas-lag3_ssrd-lag3_tas-cen16.4_postCOVID.csv"))
 RR_meta_post$trust <- NULL
 RR_meta_post$cen <- NULL
-RR_meta_post$period <- "exc_COVID19_period"
+RR_meta_post$period <- "excluding COVID19 period"
 
 RR_meta <- rbind(RR_meta, RR_meta_post)
 
@@ -208,25 +270,26 @@ p_meta_COVID_sensitivity <- ggplot(RR_meta, aes(x = var_value, y = RR)) +
     aes(ymin = RR_CIl, ymax = RR_CIh, fill = period),
     alpha = 0.4
   ) +
-  scale_color_manual(values = c("inc_COVID19_period" = "#E69F00", "exc_COVID19_period" = "#0072B2")) +
-  scale_fill_manual(values = c("inc_COVID19_period" = "#E69F00", "exc_COVID19_period" = "#0072B2")) +
+  scale_color_manual(values = c("including COVID19 period" = "#E69F00", "excluding COVID19 period" = "#0072B2")) +
+  scale_fill_manual(values = c("including COVID19 period" = "#E69F00", "excluding COVID19 period" = "#0072B2")) +
   geom_hline(yintercept = 1) +
   theme_minimal(base_size = 14) +
   labs(
     x = paste0(var_full[v], " percentile"), y = "relative risk",
     title = paste0(var_full[v], " and mental health call, ", month_season[s])
   ) +
-  theme(text = element_text(size = 16))
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
 
 ggsave(
-  filename = paste0("ERF_meta_May-Sep_COVID_sensitivity.jpeg"),
+  filename = paste0("Figure4_ERF_meta_May-Sep_COVID_sensitivity.jpeg"),
   path = paste0("./output/", season[s], " months/sensitivity_analysis"),
-  plot = p_meta_COVID_sensitivity, width = 9, height = 4.5, limitsize = FALSE
+  plot = p_meta_COVID_sensitivity, width = 7, height = 5.5, limitsize = FALSE
 )
 ggsave(
-  filename = paste0("ERF_meta_May-Sep_COVID_sensitivity.pdf"),
+  filename = paste0("Figure4_ERF_meta_May-Sep_COVID_sensitivity.pdf"),
   path = paste0("./output/", season[s], " months/sensitivity_analysis"),
-  plot = p_meta_COVID_sensitivity, width = 9, height = 4.5, limitsize = FALSE
+  plot = p_meta_COVID_sensitivity, width = 7, height = 5.5, limitsize = FALSE
 )
 ## ----RR along lags----
 # ERF
@@ -251,7 +314,7 @@ p_lag <- ggplot(RR_99, aes(x = lag_tas, y = RR)) +
 theme_minimal(base_size = 14) +
   labs(
     x = "maximum lag", y = "relative risk",
-    title = "temperature and mental health call, ", month_season[s]
+    title = "Temperature and mental health call, ", month_season[s]
   ) +
   theme(text = element_text(size = 16))
 # var at 99th percentile tas
@@ -290,14 +353,14 @@ RR_file <- c(
   rh = "meta_tas-lag3_rh-lag1_rh-cen0.csv"
 )
 
-var_full <- c("temperature", "relative humidity")
+var_full <- c("Temperature", "Relative humidity")
 RR_meta_excrh <- read.csv(paste0("output/", season[s], " months/meta_tas-lag3_ssrd-lag3_tas-cen16.4.csv"))
 RR_meta_excrh$trust <- NULL
 RR_meta_excrh$tas_lag <- NULL
-RR_meta_excrh$rh <- "exc-rh"
+RR_meta_excrh$rh <- "Not adjusted"
 
 RR_meta_incrh <- read.csv(paste0("output/", season[s], " months/meta_tas-lag3_rh-lag3_", var_name[v], "-cen17.4.csv"))
-RR_meta_incrh$rh <- "inc-rh"
+RR_meta_incrh$rh <- "Adjusted"
 RR_meta_incrh$trust <- NULL
 RR_meta <- rbind(RR_meta_incrh, RR_meta_excrh)
 
@@ -312,25 +375,29 @@ p_meta_rh_sensitivity <- ggplot(RR_meta, aes(x = var_value, y = RR)) +
     aes(ymin = RR_CIl, ymax = RR_CIh, fill = rh),
     alpha = 0.4
   ) +
-  scale_color_manual(values = c("inc-rh" = "#E69F00", "exc-rh" = "#0072B2")) +
-  scale_fill_manual(values = c("inc-rh" = "#E69F00", "exc-rh" = "#0072B2")) +
+  scale_color_manual(
+    name = "Relative humidity adjustment",
+    values = c("Adjusted" = "#E69F00", "Not adjusted" = "#0072B2")) +
+  scale_fill_manual(
+    name = "Relative humidity adjustment",
+    values = c("Adjusted" = "#E69F00", "Not adjusted" = "#0072B2")) +
   geom_hline(yintercept = 1) +
   theme_minimal(base_size = 14) +
   labs(
     x = paste0(var_full[v], " percentile"), y = "relative risk",
-    title = paste0(var_full[v], " and mental health call, ", month_season[s], "\n with and without relative humidity controlled")
-  ) +
-  theme(text = element_text(size = 16))
+    title = paste0(var_full[v], " and mental health call, May to September\nwith and without relative humidity adjustment")) +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
 
 ggsave(
-  filename = paste0("ERF_meta_May-Sep_inc-exc-rh_rh-lag3.jpeg"),
+  filename = paste0("FigureS3_ERF_meta_May-Sep_inc-exc-rh_rh-lag3.jpeg"),
   path = paste0("./output/", season[s], " months/sensitivity_analysis"),
-  plot = p_meta_rh_sensitivity, width = 9, height = 4.5, limitsize = FALSE
+  plot = p_meta_rh_sensitivity, width = 7, height = 5.5, limitsize = FALSE
 )
 ggsave(
-  filename = paste0("ERF_meta_May-Sep_inc-exc-rh_rh-lag3.pdf"),
+  filename = paste0("FigureS3_ERF_meta_May-Sep_inc-exc-rh_rh-lag3.pdf"),
   path = paste0("./output/", season[s], " months/sensitivity_analysis"),
-  plot = p_meta_rh_sensitivity, width = 9, height = 4.5, limitsize = FALSE
+  plot = p_meta_rh_sensitivity, width = 7, height = 5.5, limitsize = FALSE
 )
 
 ## rh effect
